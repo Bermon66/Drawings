@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Canvas</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <button id="openCanvas">Open Canvas</button>
+    <div id="canvasContainer"></div>
+
+    <script>
+        document.getElementById('openCanvas').addEventListener('click', () => {
+            createCanvas();
+        });
+
+        function createCanvas() {
+            const container = document.getElementById('canvasContainer');
+            container.innerHTML = ''; // Clear previous canvas if any
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 100;
+            container.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+
+            // Define the rectangle and dots
+            let dots = createDots();
+
+            let draggingDot = null;
+
+            function createDots() {
+                return [
+                    { x: 26, y: 42, type: 'corner' }, // Top-left
+                    { x: 74, y: 42, type: 'corner' }, // Top-right
+                    { x: 26, y: 58, type: 'corner' }, // Bottom-left
+                    { x: 74, y: 58, type: 'corner' }, // Bottom-right
+                    { x: 50, y: 42, type: 'edge', edge: 'top' }, // Top-center
+                    { x: 50, y: 58, type: 'edge', edge: 'bottom' }, // Bottom-center
+                    { x: 26, y: 50, type: 'edge', edge: 'left' }, // Left-center
+                    { x: 74, y: 50, type: 'edge', edge: 'right' } // Right-center
+                ];
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw rectangle with dotted lines
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(dots[0].x, dots[0].y); // Top-left
+                ctx.lineTo(dots[1].x, dots[1].y); // Top-right
+                ctx.lineTo(dots[3].x, dots[3].y); // Bottom-right
+                ctx.lineTo(dots[2].x, dots[2].y); // Bottom-left
+                ctx.closePath();
+                ctx.stroke();
+
+                // Draw dots
+                ctx.setLineDash([]);
+                dots.forEach(dot => {
+                    ctx.beginPath();
+                    ctx.arc(dot.x, dot.y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+
+            function updateDots(draggedDot) {
+                if (draggedDot.type === 'corner') {
+                    // Update center dots when corner is dragged
+                    dots[4].x = (dots[0].x + dots[1].x) / 2; // Top-center
+                    dots[4].y = (dots[0].y + dots[1].y) / 2;
+
+                    dots[5].x = (dots[2].x + dots[3].x) / 2; // Bottom-center
+                    dots[5].y = (dots[2].y + dots[3].y) / 2;
+
+                    dots[6].x = (dots[0].x + dots[2].x) / 2; // Left-center
+                    dots[6].y = (dots[0].y + dots[2].y) / 2;
+
+                    dots[7].x = (dots[1].x + dots[3].x) / 2; // Right-center
+                    dots[7].y = (dots[1].y + dots[3].y) / 2;
+                } else if (draggedDot.type === 'edge') {
+                    // Update the line associated with the dragged edge dot
+                    switch (draggedDot.edge) {
+                        case 'top':
+                            dots[0].y = draggedDot.y;
+                            dots[1].y = draggedDot.y;
+                            break;
+                        case 'bottom':
+                            dots[2].y = draggedDot.y;
+                            dots[3].y = draggedDot.y;
+                            break;
+                        case 'left':
+                            dots[0].x = draggedDot.x;
+                            dots[2].x = draggedDot.x;
+                            break;
+                        case 'right':
+                            dots[1].x = draggedDot.x;
+                            dots[3].x = draggedDot.x;
+                            break;
+                    }
+                }
+            }
+
+            function getMousePos(evt) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+
+            function findClosestDot(pos) {
+                return dots.find(dot => {
+                    const distance = Math.sqrt((dot.x - pos.x) ** 2 + (dot.y - pos.y) ** 2);
+                    return distance <= 5; // Within 5px radius
+                });
+            }
+
+            canvas.addEventListener('mousedown', evt => {
+                const pos = getMousePos(evt);
+                draggingDot = findClosestDot(pos);
+            });
+
+            canvas.addEventListener('mousemove', evt => {
+                if (draggingDot) {
+                    const pos = getMousePos(evt);
+                    draggingDot.x = pos.x;
+                    draggingDot.y = pos.y;
+                    updateDots(draggingDot);
+                    draw();
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                draggingDot = null;
+            });
+
+            draw();
+        }
+    </script>
+</body>
+</html>
+
