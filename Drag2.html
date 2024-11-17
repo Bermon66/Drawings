@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Canvas</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+
+        /* Center popup styling */
+        #popupCanvas {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background: white;
+            border: 2px solid black;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        #areaLabel {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        button {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <button id="showCanvas">Open Canvas</button>
+
+    <div id="overlay"></div>
+    <div id="popupCanvas">
+        <canvas id="myCanvas" width="100" height="100"></canvas>
+        <div id="areaLabel">Area: 0</div>
+        <button id="closeCanvas">Close</button>
+    </div>
+
+    <script>
+        let dots = [];
+        let draggingDot = null;
+
+        document.getElementById('showCanvas').addEventListener('click', showCanvas);
+        document.getElementById('closeCanvas').addEventListener('click', closeCanvas);
+
+        function showCanvas() {
+            document.getElementById('popupCanvas').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            initializeCanvas();
+        }
+
+        function closeCanvas() {
+            document.getElementById('popupCanvas').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function initializeCanvas() {
+            const canvas = document.getElementById('myCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Define rectangle dimensions
+            const rect = {
+                x: 26, // Start position to center the rectangle in 100x100 canvas
+                y: 42,
+                width: 48,
+                height: 16
+            };
+
+            // Define initial corner dots only
+            dots = [
+                { x: rect.x, y: rect.y }, // Top-left
+                { x: rect.x + rect.width, y: rect.y }, // Top-right
+                { x: rect.x, y: rect.y + rect.height }, // Bottom-left
+                { x: rect.x + rect.width, y: rect.y + rect.height } // Bottom-right
+            ];
+
+            drawCanvas(ctx, canvas);
+
+            canvas.addEventListener('mousedown', evt => {
+                const pos = getMousePos(canvas, evt);
+                draggingDot = findClosestDot(pos);
+            });
+
+            canvas.addEventListener('mousemove', evt => {
+                if (draggingDot) {
+                    const pos = getMousePos(canvas, evt);
+                    draggingDot.x = pos.x;
+                    draggingDot.y = pos.y;
+                    drawCanvas(ctx, canvas);
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                draggingDot = null;
+            });
+        }
+
+        function drawCanvas(ctx, canvas) {
+            // Define the lines to draw (connect the dots)
+            const lines = [
+                [dots[0], dots[1]], // Top-left to Top-right
+                [dots[1], dots[3]], // Top-right to Bottom-right
+                [dots[3], dots[2]], // Bottom-right to Bottom-left
+                [dots[2], dots[0]]  // Bottom-left to Top-left
+            ];
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw dotted lines
+            ctx.beginPath();
+            ctx.setLineDash([3, 3]); // Dotted line pattern (5px dash, 5px gap)
+            lines.forEach(line => {
+                ctx.moveTo(line[0].x, line[0].y);
+                ctx.lineTo(line[1].x, line[1].y);
+            });
+            ctx.stroke();
+
+            // Draw dots
+            ctx.setLineDash([]); // Reset line dash for solid dots
+            dots.forEach(dot => {
+                ctx.beginPath();
+                ctx.arc(dot.x, dot.y, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Update area label
+            updateArea();
+        }
+
+        function updateArea() {
+            const area = calculatePolygonArea(dots);
+            document.getElementById('areaLabel').innerText = `Area: ${area.toFixed(2)}`;
+        }
+
+        function calculatePolygonArea(vertices) {
+            let sum1 = 0; // Sum of x[i] * y[i+1]
+            let sum2 = 0; // Sum of y[i] * x[i+1]
+            const n = vertices.length;
+
+            for (let i = 0; i < n; i++) {
+                const current = vertices[i];
+                const next = vertices[(i + 1) % n]; // Loop back to the first vertex
+                sum1 += current.x * next.y;
+                sum2 += current.y * next.x;
+            }
+
+            return Math.abs(sum1 - sum2) / 2; // Shoelace formula
+        }
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        function findClosestDot(pos) {
+            return dots.find(dot => {
+                const distance = Math.sqrt((dot.x - pos.x) ** 2 + (dot.y - pos.y) ** 2);
+                return distance <= 5; // Within 5px radius
+            });
+        }
+    </script>
+</body>
+</html>
